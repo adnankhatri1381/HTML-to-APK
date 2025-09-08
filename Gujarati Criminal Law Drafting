@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="gu">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gujarati law criminal drafting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- PDF.js library ne add karvi (updated CDN link) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-user-select: none;
+            /* Safari */
+            -ms-user-select: none;
+            /* IE 10+ */
+            user-select: none;
+            /* Standard syntax */
+        }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+
+            .print-area,
+            .print-area * {
+                visibility: visible;
+            }
+
+            .print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
+
+        .modal-overlay {
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .modal-content {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        #pdf-canvas {
+            border: 1px solid #4a5568;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white" oncontextmenu="return false;">
+
+    <div id="app" class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-cyan-400">Gujarati Law Criminal Drafting.pdf</h1>
+            <p class="text-gray-400 mt-2">Gujarati law Criminal drafting pdf.</p>
+        </header>
+
+        <main id="pdf-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <!-- PDF cards JavaScript thi ahiya aavshe -->
+        </main>
+
+        <footer class="text-center mt-12 text-gray-500 text-sm">
+            <p><strong>ચેતવણી:</strong> આ પ્લેટફોર્મ પરની કોઈપણ સામગ્રીનો સ્ક્રીનશોટ લેવો, રેકોર્ડ કરવો કે શેર કરવો સખત
+                પ્રતિબંધિત છે. આવા પ્રયાસો પર કાયદેસરની કાર્યવાહી થઈ શકે છે.</p>
+        </footer>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal"
+        class="modal-overlay fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden opacity-0">
+        <div class="modal-content bg-gray-800 rounded-lg shadow-xl p-8 w-full max-w-md transform scale-95">
+            <h2 class="text-2xl font-bold mb-4 text-cyan-400">ચુકવણી કરો</h2>
+            <div id="payment-details" class="mb-6">
+                <p class="text-gray-300">તમે <strong id="pdf-title-payment" class="text-white"></strong> ખરીદી રહ્યા છો.
+                </p>
+                <p class="text-2xl font-bold mt-2 text-green-400">કિંમત: ₹<span id="pdf-price-payment"></span></p>
+            </div>
+            <form id="payment-form">
+                <div>
+                    <label for="card-number" class="block text-sm font-medium text-gray-400">કાર્ડ નંબર</label>
+                    <input type="text" id="card-number" placeholder="•••• •••• •••• ••••"
+                        class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-cyan-500 focus:border-cyan-500"
+                        required>
+                </div>
+                <div class="flex gap-4 mt-4">
+                    <div class="w-1/2">
+                        <label for="expiry-date" class="block text-sm font-medium text-gray-400">Expiry (MM/YY)</label>
+                        <input type="text" id="expiry-date" placeholder="MM/YY"
+                            class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-cyan-500 focus:border-cyan-500"
+                            required>
+                    </div>
+                    <div class="w-1/2">
+                        <label for="cvv" class="block text-sm font-medium text-gray-400">CVV</label>
+                        <input type="text" id="cvv" placeholder="•••"
+                            class="mt-1 w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white focus:ring-cyan-500 focus:border-cyan-500"
+                            required>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-end gap-4">
+                    <button type="button" id="cancel-payment-btn"
+                        class="py-2 px-6 bg-gray-600 hover:bg-gray-500 rounded-md transition">રદ કરો</button>
+                    <button type="submit"
+                        class="py-2 px-6 bg-cyan-600 hover:bg-cyan-500 font-bold rounded-md transition flex items-center gap-2">
+                        <span id="pay-btn-text">ચુકવણી કરો</span>
+                        <div id="payment-loader"
+                            class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin hidden">
+                        </div>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PDF Viewer Modal -->
+    <div id="pdf-viewer-modal"
+        class="modal-overlay fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center hidden opacity-0 p-4">
+        <div
+            class="modal-content bg-gray-800 rounded-lg shadow-xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col transform scale-95">
+            <div class="flex justify-between items-center p-4 border-b border-gray-700">
+                <h2 id="viewer-title" class="text-xl font-bold text-cyan-400">PDF Viewer</h2>
+                <button id="close-viewer-btn" class="text-2xl text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div id="viewer-content"
+                class="p-2 md:p-6 flex-grow flex flex-col items-center justify-center bg-gray-900 overflow-auto">
+                <!-- PDF ahiya canvas ma render thashe -->
+                <div id="pdf-loader" class="text-center">
+                    <div
+                        class="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto">
+                    </div>
+                    <p class="mt-4 text-gray-300">PDF લોડ થઈ રહી છે...</p>
+                </div>
+                <canvas id="pdf-canvas" class="hidden"></canvas>
+            </div>
+            <div id="pdf-controls"
+                class="p-4 border-t border-gray-700 text-center flex justify-center items-center gap-4">
+                <button id="prev-page"
+                    class="py-2 px-4 bg-gray-700 hover:bg-gray-600 rounded-md transition">પાછલું પાનું</button>
+                <span class="text-white">Page: <span id="page-num"></span> / <span id="page-count"></span></span>
+                <button id="next-page"
+                    class="py-2 px-4 bg-gray-700 hover:bg-gray-600 rounded-md transition">આગલું પાનું</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Message Toast -->
+    <div id="toast"
+        class="fixed bottom-10 right-10 bg-green-500 text-white py-3 px-6 rounded-lg shadow-lg opacity-0 transform translate-y-5 transition-all duration-300">
+        ચુકવણી સફળ થઈ!
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const pdfGrid = document.getElementById('pdf-grid');
+            const paymentModal = document.getElementById('payment-modal');
+            const pdfViewerModal = document.getElementById('pdf-viewer-modal');
+            const paymentForm = document.getElementById('payment-form');
+            const cancelPaymentBtn = document.getElementById('cancel-payment-btn');
+            const closeViewerBtn = document.getElementById('close-viewer-btn');
+            const toast = document.getElementById('toast');
+            let activePdfId = null;
+
+            // PDF.js worker no path set karo (updated CDN link)
+            const pdfjsLib = window['pdfjs-dist/build/pdf'];
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+            // PDF viewer mate na variables
+            const pdfCanvas = document.getElementById('pdf-canvas');
+            const pageNumSpan = document.getElementById('page-num');
+            const pageCountSpan = document.getElementById('page-count');
+            const prevPageBtn = document.getElementById('prev-page');
+            const nextPageBtn = document.getElementById('next-page');
+            const pdfLoader = document.getElementById('pdf-loader');
+            const pdfControls = document.getElementById('pdf-controls');
+
+            let pdfDoc = null;
+            let pageNum = 12
+            let pageRendering = false;
+            let pageNumPending = null;
+            const scale = 1.5;
+            const ctx = pdfCanvas.getContext('2d');
+
+            // Namuna no data, have URL sathe
+            const pdfs = [
+                // Mahatvapurna: Aa URL CORS-enabled hova joiye, nahitar te browser ma load nahi thay.
+                // Tamare tamari PDF file ne online host karvi padshe.
+                 
+                
+                
+        
+                { id: 1, title: 'Gujarati Law Criminal drafting', description: ' ડ્રાફ્ટિંગના નમૂના.', price: 10, purchased: false, icon: '⚖️', url: '.https://drive.google.com/file/d/1tc9zj_irIw4iM3Zr1YE6JmccQ7dOyi--/view?usp=drivesdk ' }
+            ];
+            function renderPDFs() {
+                pdfGrid.innerHTML = '';
+                pdfs.forEach(pdf => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-800 rounded-lg p-5 flex flex-col items-center text-center shadow-lg transform hover:-translate-y-2 transition-transform duration-300';
+                    card.innerHTML = `
+                        <div class="text-5xl mb-4">${pdf.icon}</div>
+                        <h3 class="text-lg font-bold text-white mb-2">${pdf.title}</h3>
+                        <p class="text-gray-400 text-sm mb-4 flex-grow">${pdf.description}</p>
+                        ${pdf.purchased
+                            ? `<button data-id="${pdf.id}" class="view-btn w-full mt-auto bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-md transition">PDF જુઓ</button>`
+                            : `<button data-id="${pdf.id}" class="buy-btn w-full mt-auto bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-md transition">ખરીદો ₹${pdf.price}</button>`
+                        }
+                    `;
+                    pdfGrid.appendChild(card);
+                });
+            }
+
+            function openModal(modal) {
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    modal.querySelector('.modal-content').classList.remove('scale-95');
+                }, 10);
+            }
+
+            function closeModal(modal) {
+                modal.classList.add('opacity-0');
+                modal.querySelector('.modal-content').classList.add('scale-95');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    if (modal === pdfViewerModal) {
+                        pdfDoc = null;
+                        pdfCanvas.classList.add('hidden');
+                    }
+                }, 300);
+            }
+
+            // PDF Page render karva mate function
+            function renderPage(num) {
+                pageRendering = true;
+                pdfDoc.getPage(num).then(function (page) {
+                    const viewport = page.getViewport({ scale: scale });
+                    pdfCanvas.height = viewport.height;
+                    pdfCanvas.width = viewport.width;
+
+                    const renderContext = {
+                        canvasContext: ctx,
+                        viewport: viewport
+                    };
+                    const renderTask = page.render(renderContext);
+                    renderTask.promise.then(function () {
+                        pageRendering = false;
+                        if (pageNumPending !== null) {
+                            renderPage(pageNumPending);
+                            pageNumPending = null;
+                        }
+                    });
+                });
+                pageNumSpan.textContent = num;
+            }
+
+            // Page rendering queue
+            function queueRenderPage(num) {
+                if (pageRendering) {
+                    pageNumPending = num;
+                } else {
+                    renderPage(num);
+                }
+            }
+
+            // Previous page mate function
+            function onPrevPage() {
+                if (pageNum <= 1) return;
+                pageNum--;
+                queueRenderPage(pageNum);
+            }
+            prevPageBtn.addEventListener('click', onPrevPage);
+
+            // Next page mate function
+            function onNextPage() {
+                if (pageNum >= pdfDoc.numPages) return;
+                pageNum++;
+                queueRenderPage(pageNum);
+            }
+            nextPageBtn.addEventListener('click', onNextPage);
+
+            // PDF load karva mate function
+            function loadPdf(url) {
+                pdfLoader.classList.remove('hidden');
+                pdfCanvas.classList.add('hidden');
+                pdfControls.classList.add('hidden');
+
+                pdfjsLib.getDocument(url).promise.then(function (pdfDoc_) {
+                    pdfDoc = pdfDoc_;
+                    pageCountSpan.textContent = pdfDoc.numPages;
+                    pageNum = 1;
+                    renderPage(pageNum);
+
+                    pdfLoader.classList.add('hidden');
+                    pdfCanvas.classList.remove('hidden');
+                    pdfControls.classList.remove('hidden');
+
+                }).catch(function (error) {
+                    console.error('Error loading PDF: ' + error.message);
+                    pdfLoader.innerHTML = `<p class="text-red-400">PDF લોડ કરવામાં ભૂલ આવી. કૃપા કરીને ખાતરી કરો કે PDF URL સાચો છે અને CORS સક્ષમ છે.</p>`;
+                });
+            }
+
+            pdfGrid.addEventListener('click', (e) => {
+                const id = e.target.dataset.id;
+                if (!id) return;
+
+                activePdfId = parseInt(id);
+                const pdf = pdfs.find(p => p.id === activePdfId);
+
+                if (e.target.classList.contains('buy-btn')) {
+                    document.getElementById('pdf-title-payment').innerText = pdf.title;
+                    document.getElementById('pdf-price-payment').innerText = pdf.price;
+                    openModal(paymentModal);
+                } else if (e.target.classList.contains('view-btn')) {
+                    document.getElementById('viewer-title').innerText = pdf.title;
+                    openModal(pdfViewerModal);
+                    loadPdf(pdf.url);
+                }
+            });
+
+            cancelPaymentBtn.addEventListener('click', () => closeModal(paymentModal));
+            closeViewerBtn.addEventListener('click', () => closeModal(pdfViewerModal));
+
+            paymentModal.addEventListener('click', (e) => { if (e.target === paymentModal) closeModal(paymentModal); });
+            pdfViewerModal.addEventListener('click', (e) => { if (e.target === pdfViewerModal) closeModal(pdfViewerModal); });
+
+            paymentForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const payBtnText = document.getElementById('pay-btn-text');
+                const loader = document.getElementById('payment-loader');
+                payBtnText.classList.add('hidden');
+                loader.classList.remove('hidden');
+
+                setTimeout(() => {
+                    const pdf = pdfs.find(p => p.id === activePdfId);
+                    if (pdf) pdf.purchased = true;
+                    payBtnText.classList.remove('hidden');
+                    loader.classList.add('hidden');
+                    closeModal(paymentModal);
+                    renderPDFs();
+                    showToast();
+                    paymentForm.reset();
+                }, 2000);
+            });
+
+            function showToast() {
+                toast.classList.remove('opacity-0', 'translate-y-5');
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-y-5');
+                }, 3000);
+            }
+
+            document.addEventListener('keydown', function (e) {
+                if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 's')) {
+                    e.preventDefault();
+                    alert('આ ક્રિયા અક્ષમ છે.');
+                }
+            });
+
+            renderPDFs();
+        });
+    </script>
+</body>
+
+</html>
