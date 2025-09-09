@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gujarati law criminal drafting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- Razorpay script -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-user-select: none; user-select: none; }
+        .modal-overlay { transition: opacity 0.3s ease-in-out; }
+        .modal-content { transition: transform 0.3s ease-in-out; }
+        #pdf-canvas { border: 1px solid #4a5568; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white" oncontextmenu="return false;">
+
+    <div id="app" class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-cyan-400">Gujarati Criminal law drafting.pdf </h1>
+            <p class="text-gray-400 mt-2">અગત્યની અરજીના નમૂના.</p>
+        </header>
+        <main id="pdf-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></main>
+    </div>
+
+    <!-- PDF Viewer Modal -->
+    <div id="pdf-viewer-modal" class="modal-overlay fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center hidden opacity-0 p-4">
+        <div class="modal-content bg-gray-800 rounded-lg shadow-xl w-full h-full max-w-4xl max-h-[90vh] flex flex-col transform scale-95">
+            <div class="flex justify-between items-center p-4 border-b border-gray-700">
+                <h2 id="viewer-title" class="text-xl font-bold text-cyan-400">PDF Viewer</h2>
+                <button id="close-viewer-btn" class="text-2xl text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div id="viewer-content" class="p-2 md:p-6 flex-grow flex flex-col items-center justify-center bg-gray-900 overflow-auto">
+                <div id="pdf-loader" class="text-center">
+                    <div class="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p class="mt-4 text-gray-300">PDF લોડ થઈ રહી છે...</p>
+                </div>
+                <canvas id="pdf-canvas" class="hidden"></canvas>
+            </div>
+            <div id="pdf-controls" class="p-4 border-t border-gray-700 text-center flex justify-center items-center gap-4">
+                <button id="prev-page" class="py-2 px-4 bg-gray-700 hover:bg-gray-600 rounded-md transition">પાછલું પાનું</button>
+                <span class="text-white">Page: <span id="page-num"></span> / <span id="page-count"></span></span>
+                <button id="next-page" class="py-2 px-4 bg-gray-700 hover:bg-gray-600 rounded-md transition">આગલું પાનું</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const pdfGrid = document.getElementById('pdf-grid');
+            const pdfViewerModal = document.getElementById('pdf-viewer-modal');
+            const closeViewerBtn = document.getElementById('close-viewer-btn');
+            
+            const pdfjsLib = window['pdfjs-dist/build/pdf'];
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+            const pdfCanvas = document.getElementById('pdf-canvas');
+            const pageNumSpan = document.getElementById('page-num');
+            const pageCountSpan = document.getElementById('page-count');
+            const prevPageBtn = document.getElementById('prev-page');
+            const nextPageBtn = document.getElementById('next-page');
+            const pdfLoader = document.getElementById('pdf-loader');
+            const pdfControls = document.getElementById('pdf-controls');
+            let pdfDoc = null, pageNum = 1, pageRendering = false, pageNumPending = null;
+            const scale = 1.5;
+            const ctx = pdfCanvas.getContext('2d');
+
+            const pdfs = [
+                { 
+                    id: 1, 
+                    title: 'Gujarati Criminal law drafting.pdf', 
+                    description: 'ક્રિમીનલ ડ્રાફ્ટિંગ સંબંધિત અગત્યની અરજીના નમૂના.', 
+                    price: 10, 
+                    purchased: false, 
+                    icon: '⚖️', 
+                    // 📄 STEP 2: Tamari potani PDF ni link ahiya nakho
+                    url: 'https://cdn.jsdelivr.net/gh/mozilla/pdf.js/test/pdfs/tracemonkey.pdf' 
+                },
+            ];
+
+            function renderPDFs() {
+                pdfGrid.innerHTML = '';
+                pdfs.forEach(pdf => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-800 rounded-lg p-5 flex flex-col items-center text-center shadow-lg transform hover:-translate-y-2 transition-transform duration-300';
+                    card.innerHTML = `
+                        <div class="text-5xl mb-4">${pdf.icon}</div>
+                        <h3 class="text-lg font-bold text-white mb-2">${pdf.title}</h3>
+                        <p class="text-gray-400 text-sm mb-4 flex-grow">${pdf.description}</p>
+                        ${pdf.purchased 
+                            ? `<button data-id="${pdf.id}" class="view-btn w-full mt-auto bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-md transition">PDF જુઓ</button>`
+                            : `<button data-id="${pdf.id}" class="buy-btn w-full mt-auto bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-md transition">ખરીદો ₹${pdf.price}</button>`
+                        }
+                    `;
+                    pdfGrid.appendChild(card);
+                });
+            }
+            
+            function openModal(modal) { modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('.modal-content').classList.remove('scale-95'); }, 10); }
+            function closeModal(modal) { modal.classList.add('opacity-0'); modal.querySelector('.modal-content').classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); if(modal === pdfViewerModal) { pdfDoc = null; pdfCanvas.classList.add('hidden'); } }, 300); }
+            function renderPage(num) { pageRendering = true; pdfDoc.getPage(num).then(function(page) { const viewport = page.getViewport({ scale: scale }); pdfCanvas.height = viewport.height; pdfCanvas.width = viewport.width; const renderContext = { canvasContext: ctx, viewport: viewport }; const renderTask = page.render(renderContext); renderTask.promise.then(function() { pageRendering = false; if (pageNumPending !== null) { renderPage(pageNumPending); pageNumPending = null; } }); }); pageNumSpan.textContent = num; }
+            function queueRenderPage(num) { if (pageRendering) { pageNumPending = num; } else { renderPage(num); } }
+            function onPrevPage() { if (pageNum <= 1) return; pageNum--; queueRenderPage(pageNum); }
+            function onNextPage() { if (pageNum >= pdfDoc.numPages) return; pageNum++; queueRenderPage(pageNum); }
+            prevPageBtn.addEventListener('click', onPrevPage);
+            nextPageBtn.addEventListener('click', onNextPage);
+            function loadPdf(url) { pdfLoader.classList.remove('hidden'); pdfCanvas.classList.add('hidden'); pdfControls.classList.add('hidden'); pdfjsLib.getDocument(url).promise.then(function(pdfDoc_) { pdfDoc = pdfDoc_; pageCountSpan.textContent = pdfDoc.numPages; pageNum = 1; renderPage(pageNum); pdfLoader.classList.add('hidden'); pdfCanvas.classList.remove('hidden'); pdfControls.classList.remove('hidden'); }).catch(function(error){ console.error('Error loading PDF: ' + error.message); pdfLoader.innerHTML = `<p class="text-red-400">PDF લોડ કરવામાં ભૂલ આવી.</p>`; }); }
+            closeViewerBtn.addEventListener('click', () => closeModal(pdfViewerModal));
+            pdfViewerModal.addEventListener('click', (e) => { if (e.target === pdfViewerModal) closeModal(pdfViewerModal); });
+
+            async function fakeCreateOrderOnBackend(amount) {
+                console.log(`Backend simulation: ${amount/100} INR mate order banavi rahya છીએ.`);
+                await new Promise(resolve => setTimeout(resolve, 1000)); 
+                const fakeOrderId = 'order_' + 'fake' + Date.now();
+                console.log(`Backend simulation: Fake order_id malyo: ${fakeOrderId}`);
+                return { id: fakeOrderId, amount: amount };
+            }
+
+            pdfGrid.addEventListener('click', async (e) => {
+                const target = e.target;
+                const id = target.dataset.id;
+                if (!id) return;
+                
+                const pdf = pdfs.find(p => p.id === parseInt(id));
+
+                if (target.classList.contains('buy-btn')) {
+                    const order = await fakeCreateOrderOnBackend(pdf.price * 100);
+
+                    const options = {
+                        key: 'rzp_test_YOUR_KEY_ID', // Tamaro Razorpay Test Key ID ahiya nakho
+                        amount: order.amount,
+                        currency: 'INR',
+                        name: 'Gujarati Law Drafting (Test)',
+                        description: `Payment for ${pdf.title}`,
+                        order_id: order.id,
+                        handler: function (response) {
+                            alert(`Test Payment Safal! Payment ID: ${response.razorpay_payment_id}`);
+                            pdf.purchased = true;
+                            renderPDFs();
+                        },
+                        prefill: { name: 'Test User', email: 'test@example.com', contact: '9999999999' },
+                        theme: { color: '#0891b2' }
+                    };
+
+                    try {
+                        const rzp1 = new Razorpay(options);
+                        rzp1.open();
+                    } catch(error) {
+                        console.error("Razorpay error:", error);
+                        alert("Razorpay kholi shakayu nahi. Console ma error check karo.");
+                    }
+
+                } else if (target.classList.contains('view-btn')) {
+                    document.getElementById('viewer-title').innerText = pdf.title;
+                    openModal(pdfViewerModal);
+                    loadPdf(pdf.url);
+                }
+            });
+            renderPDFs();
+        });
+    </script> 
+</body>
+</html>
